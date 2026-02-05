@@ -4,8 +4,8 @@ A virtual joystick interface to control a drone in real-time using FastAPI WebSo
 
 ## Features
 
-- Web-based virtual joystick (2 axes each for Roll/Pitch and Yaw/Throttle)
-- FastAPI WebSocket communication (20 Hz)
+- Web-based virtual joystick 
+- FastAPI WebSocket communication 
 - MAVLink flight controller adapter
 - Authority arbitration for multiple operators
 - Audit logs via NATS JetStream
@@ -36,7 +36,7 @@ pip install -r requirements.txt
 
 ### 4. Configure Flight Controller Adapter
 
-By default, `MAVLinkAdapter` is used (UDP: `127.0.0.1:14551`). For testing without hardware, use `MockAdapter`:
+By default, `MAVLinkAdapter` is used (UDP: `127.0.0.1:14551`). For testing without drone, use `MockAdapter`:
 
 ```bash
 export FC_ADAPTER=MOCK   # Linux/macOS
