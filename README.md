@@ -16,7 +16,7 @@ A virtual joystick interface to control a drone in real-time using FastAPI WebSo
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/Sami-Elsadiq/drone-joystick-control.git
+git clone https://github.com/Sami-Elsadiq/Manual-Takeover-Service.git
 cd drone-joystick-control
 ```
 
