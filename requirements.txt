@@ -1,0 +1,5 @@
+fastapi==0.111.1
+uvicorn==0.24.0
+pydantic==2.7.0
+pymavlink==2.5.5
+nats-py==2.1.1

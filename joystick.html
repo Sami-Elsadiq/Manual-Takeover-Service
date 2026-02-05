@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Virtual Joystick</title>
+
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 60px;
+      background: #f0f0f0;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    .joystick-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: sans-serif;
+    }
+
+    .label {
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+
+    .joystick {
+      width: 200px;
+      height: 200px;
+      background: #ddd;
+      border-radius: 50%;
+      position: relative;
+      touch-action: none;
+    }
+
+    .stick {
+      width: 60px;
+      height: 60px;
+      background: #444;
+      border-radius: 50%;
+      position: relative;
+      left: 70px;
+      top: 70px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="joystick-container">
+    <div class="label">Yaw / Throttle</div>
+    <div class="joystick" id="left">
+      <div class="stick"></div>
+    </div>
+  </div>
+
+  <div class="joystick-container">
+    <div class="label">Roll / Pitch</div>
+    <div class="joystick" id="right">
+      <div class="stick"></div>
+    </div>
+  </div>
+
+<script>
+/* ===============================
+   WebSocket
+   =============================== */
+const ws = new WebSocket("ws://localhost:8000/ws/control");
+
+ws.onopen = () => console.log("WebSocket connected");
+ws.onerror = e => console.error("WebSocket error", e);
+
+/* ===============================
+   Control state
+   =============================== */
+let roll = 0, pitch = 0, yaw = 0, throttle = 0;
+
+/* ===============================
+   Joystick logic (per-axis spring)
+   =============================== */
+function initJoystick(joy, onMove, springBackX = true, springBackY = true) {
+  const stick = joy.querySelector(".stick");
+  const radius = joy.clientWidth / 2;
+  const stickRadius = stick.clientWidth / 2;
+  const center = radius - stickRadius;
+
+  let activePointerId = null;
+  let lastX = 0, lastY = 0;
+
+  function setStick(x, y) {
+    stick.style.left = center + x + "px";
+    stick.style.top  = center + y + "px";
+  }
+
+  joy.addEventListener("pointerdown", e => {
+    activePointerId = e.pointerId;
+    joy.setPointerCapture(activePointerId);
+  });
+
+  joy.addEventListener("pointermove", e => {
+    if (e.pointerId !== activePointerId) return;
+
+    const rect = joy.getBoundingClientRect();
+    let x = e.clientX - rect.left - radius;
+    let y = e.clientY - rect.top - radius;
+
+    const mag = Math.hypot(x, y);
+    if (mag > radius) {
+      x *= radius / mag;
+      y *= radius / mag;
+    }
+
+    lastX = x;
+    lastY = y;
+
+    setStick(x, y);
+    onMove(x / radius, -y / radius);
+  });
+
+  joy.addEventListener("pointerup", e => {
+    if (e.pointerId !== activePointerId) return;
+    joy.releasePointerCapture(activePointerId);
+    activePointerId = null;
+
+    const newX = springBackX ? 0 : lastX;
+    const newY = springBackY ? 0 : lastY;
+
+    setStick(newX, newY);
+    onMove(newX / radius, -newY / radius);
+  });
+
+  joy.addEventListener("pointercancel", e => {
+    activePointerId = null;
+
+    const newX = springBackX ? 0 : lastX;
+    const newY = springBackY ? 0 : lastY;
+
+    setStick(newX, newY);
+    onMove(newX / radius, -newY / radius);
+  });
+}
+
+/* ===============================
+   Axis mapping
+   =============================== */
+// Right joystick (Roll/Pitch) → spring enabled on both axes
+initJoystick(document.getElementById("right"), (x, y) => {
+  roll = x;
+  pitch = y;
+}, true, true);
+
+// Left joystick (Yaw/Throttle) → spring-less on throttle (Y), spring on yaw (X)
+initJoystick(document.getElementById("left"), (x, y) => {
+  yaw = x;
+  throttle = (y + 1) / 2; // map [-1,1] → [0,1]
+}, true, false);
+
+/* ===============================
+   Send loop (20 Hz)
+   =============================== */
+setInterval(() => {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      roll,
+      pitch,
+      yaw,
+      throttle,
+      timestamp: Date.now()
+    }));
+  }
+}, 50);
+</script>
+
+</body>
+</html>
