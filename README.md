@@ -17,7 +17,7 @@ A virtual joystick interface to control a drone in real-time using FastAPI WebSo
 
 ```bash
 git clone https://github.com/Sami-Elsadiq/Manual-Takeover-Service.git
-cd drone-joystick-control
+cd Manual-Takeover-Service
 ```
 
 ### 2. Create a virtual environment
