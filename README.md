@@ -73,8 +73,8 @@ nats-server -js
 
 ## Notes
 
-- Ensure UDP ports for MAVLink are open.
-- Latency monitoring is logged in console (50 Hz control loop).
+- Ensure UDP ports for MAVLink are open. port 14551
+- Latency monitoring is logged in console.
 - Emergency stop triggers if session timeout occurs.
 
 ## License
