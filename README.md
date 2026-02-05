@@ -1,4 +1,4 @@
-# Drone Joystick Control via FastAPI + MAVLink
+# Manual Takeover Service via FastAPI + MAVLink
 
 A virtual joystick interface to control a drone in real-time using FastAPI WebSocket and MAVLink. Supports authority arbitration, audit logging via NATS JetStream, and emergency failsafes.
 
