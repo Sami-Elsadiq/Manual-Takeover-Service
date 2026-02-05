@@ -19,7 +19,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 
-# 🔇 Silence internal NATS retry noise completely
 logging.getLogger("nats").setLevel(logging.CRITICAL)
 
 # =========================
@@ -138,7 +137,7 @@ async def jetstream_background_task():
     """
     global nc, js, nats_warned
 
-    # 🔔 INITIAL STATE CHECK (this is the missing piece)
+    # INITIAL STATE CHECK 
     if not nats_warned:
         logging.warning("⚠️ NATS unavailable — audit logging paused")
         nats_warned = True
@@ -155,7 +154,7 @@ async def jetstream_background_task():
         nats_warned = False
 
     async def error_cb(e):
-        pass  # fully silenced
+        pass  
 
     while True:
         try:
@@ -232,11 +231,12 @@ def control_dispatcher():
                 if cmd:
                     fc.send_control(cmd)
 
+        # timeout failsafe , TODO: find a way to measure difference for inputs to create working logic
         now = time.time()
         expired = []
         with authority_lock:
             for sid, s in sessions.items():
-                if now - s["last_input"] > 2.0:
+                if now - s["last_input"] > 10.0:
                     logging.warning(f"🚨 Session timeout: {sid}")
                     if control_owner == sid:
                         fc.emergency_stop()
