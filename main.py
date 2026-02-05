@@ -275,8 +275,17 @@ async def websocket_control(ws: WebSocket):
     global control_owner
     await ws.accept()
 
+
+    client_info = ws.client  # this is a tuple (host, port) or None
+    if client_info:
+        client_host, client_port = client_info
+        addr_str = f"{client_host}:{client_port}"
+    else:
+        addr_str = "unknown"
+
     session_id = str(uuid.uuid4())
     operator_id = f"op_{session_id[:8]}"
+    logging.info(f"🟢 Session connected: {session_id} from {client_host}:{client_port}")
 
     sessions[session_id] = {
         "last_command": None,
@@ -317,10 +326,12 @@ async def websocket_control(ws: WebSocket):
                     if control_owner is None:
                         control_owner = session_id
                         sessions[session_id]["has_control"] = True
+                        logging.info(f"Operator {operator_id} now has control")
                         await publish_audit({"event": "control_granted", "session": session_id})
 
             if joystick_moved and current_mode in ("AUTO", "MISSION") and control_owner == session_id:
                 fc.set_mode("manual")
+                logging.info(f"✋ Operator {operator_id} performed manual takeover")
                 await publish_audit({"event": "manual_takeover", "session": session_id})
 
     except Exception:
