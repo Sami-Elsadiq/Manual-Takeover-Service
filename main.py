@@ -231,6 +231,20 @@ def control_dispatcher():
                 if cmd:
                     fc.send_control(cmd)
 
+                    # 🔹 latency calculation
+                    latency_ms = (time.time() - cmd.timestamp) * 1000
+
+                    if current_mode is not "MISSION":
+
+                        # 🔹 audit EXECUTED command
+                        publish_audit_from_thread({
+                            "event": "command_sent",
+                            "session": control_owner,
+                            "command": cmd.dict(),
+                            "latency_ms": latency_ms,
+                            "flight mode": current_mode
+                        })
+
         # timeout failsafe , TODO: find a way to measure difference for inputs to create working logic
         now = time.time()
         expired = []
@@ -345,17 +359,51 @@ async def websocket_control(ws: WebSocket):
 # =========================
 # Health & Metrics
 # =========================
+@app.post("/sessions/start")
+async def start_session(operator_id: str):
+    session_id = str(uuid.uuid4())
+    sessions[session_id] = {
+        "last_command": None,
+        "last_input": time.time(),
+        "has_control": False,
+        "operator_id": operator_id,
+        "sequence": 0
+    }
+    logging.info(f"Session {session_id} started by operator {operator_id}")
+    await publish_audit({"event": "session_started", "session": session_id, "operator_id": operator_id})
+    return {"session_id": session_id}
+
+@app.post("/sessions/{session_id}/input")
+async def session_input(session_id: str, cmd: ControlCommand):
+    if session_id not in sessions:
+        return {"error": "invalid session"}
+    sessions[session_id]["last_command"] = cmd
+    sessions[session_id]["last_input"] = time.time()
+    sessions[session_id]["sequence"] += 1
+    logging.info(f"Command received for session {session_id}: {cmd.model_dump()}")
+    await publish_audit({"event": "command", "session": session_id, "command": cmd.model_dump()})
+    return {"status": "ok"}
+
+@app.post("/sessions/{session_id}/stop")
+async def stop_session(session_id: str):
+    global control_owner
+    if session_id in sessions:
+        if control_owner == session_id:
+            fc.emergency_stop()
+            control_owner = None
+        sessions.pop(session_id)
+        logging.info(f"Session {session_id} stopped")
+        await publish_audit({"event": "session_stopped", "session": session_id})
+    return {"status": "stopped"}
+
 @app.get("/health")
 async def health():
-    return {
-        "status": "ok",
-        "sessions": len(sessions),
-        "nats_connected": js is not None
-    }
+    return {"status": "ok", "connected_sessions": len(sessions)}
 
 @app.get("/metrics")
 async def metrics():
     return {
         "active_sessions": len(sessions),
-        "current_owner": control_owner
+        "current_owner": control_owner,
+        "commands_sent": sum(s.get("sequence", 0) for s in sessions.values())
     }
